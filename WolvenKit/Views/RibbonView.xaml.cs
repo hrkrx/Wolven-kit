@@ -10,6 +10,9 @@ using WolvenKit.Views.AssetBrowser;
 using WolvenKit.Views.CodeEditor;
 using WolvenKit.Views.PluginManager;
 using WolvenKit.Views.VisualEditor;
+using WolvenKit.Views.AudioTool;
+using WolvenKit.Views.JournalEditor;
+using Orchestra.Views;
 
 namespace WolvenKit.Views
 {
@@ -64,7 +67,9 @@ namespace WolvenKit.Views
 
         private void CBAssetBrowserItem_Selected(object sender, RoutedEventArgs e)
         {
-            AssetBrowserView assetBrowser = new AssetBrowserView();
+            AssetBrowserView assetBrowser = new AssetBrowserView(
+                MainController.Get().GetManagers(true),
+                MainController.Get().GetGame().GetAvaliableClasses());
             assetBrowser.Show();
         }
 
@@ -84,6 +89,31 @@ namespace WolvenKit.Views
         {
             VisualEditorView visualeditor = new VisualEditorView();
             visualeditor.Show();
+        }
+
+        private void CBAudioToolItem_Selected(object sender, RoutedEventArgs e)
+        {
+            AudioToolView audiotool = new AudioToolView();
+            audiotool.Show();
+        }
+
+        private void CBJournalEditorItem_Selected(object sender, RoutedEventArgs e)
+        {
+            JournalEditorView journaleditor = new JournalEditorView();
+            journaleditor.Show();
+        }
+
+        private void Backstage_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            base.OnMouseLeftButtonDown(e);
+
+            var serviceLocator = ServiceLocator.Default;
+
+            var shellService = serviceLocator.ResolveType<IShellService>();
+
+            ShellWindow sh = (ShellWindow)shellService.Shell;
+
+            sh.DragMove();
         }
     }
 }

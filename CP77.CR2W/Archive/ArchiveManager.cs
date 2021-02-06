@@ -7,10 +7,12 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Navigation;
 using Catel.Collections;
-using CP77Tools.Model;
+ using Catel.IoC;
+ using CP77Tools.Model;
 using WolvenKit.Common;
 using WolvenKit.Common.Model;
-using WolvenKit.Common.Tools;
+ using WolvenKit.Common.Services;
+ using WolvenKit.Common.Tools;
 using Path = System.IO.Path;
 
 namespace CP77.CR2W.Archive
@@ -21,6 +23,11 @@ namespace CP77.CR2W.Archive
 
         public ArchiveManager()
         {
+            Archives = new Dictionary<string, Archive>();
+            Files = new Dictionary<ulong, List<FileEntry>>();
+            Items = new Dictionary<string, List<IGameFile>>();
+            var hashService = ServiceLocator.Default.ResolveType<IHashService>();
+            hashService.ReloadLocally();
         }
 
         public ArchiveManager(DirectoryInfo indir)
@@ -28,7 +35,10 @@ namespace CP77.CR2W.Archive
             _parentDirectoryInfo = indir;
 
             Archives = new Dictionary<string, Archive>();
-            Files = new Dictionary<ulong, List<ArchiveItem>>();
+            Files = new Dictionary<ulong, List<FileEntry>>();
+            Items = new Dictionary<string, List<IGameFile>>();
+            var hashService = ServiceLocator.Default.ResolveType<IHashService>();
+            hashService.ReloadLocally();
 
             // load files
             Reload(indir);
@@ -38,8 +48,8 @@ namespace CP77.CR2W.Archive
 
         #region properties
         public Dictionary<string, Archive> Archives { get; set; }
-        public Dictionary<ulong, List<ArchiveItem>> Files { get; }
-        public Dictionary<string, List<ArchiveItem>> GroupedFiles =>
+        public Dictionary<ulong, List<FileEntry>> Files { get; }
+        public Dictionary<string, List<FileEntry>> GroupedFiles =>
 
             Files.Values.GroupBy(
                 f => f.FirstOrDefault().Extension,
@@ -90,7 +100,7 @@ namespace CP77.CR2W.Archive
                 {
                     // add file
                     if (!Files.ContainsKey(hash))
-                        Files.Add(hash, new List<ArchiveItem>());
+                        Files.Add(hash, new List<FileEntry>());
                     Files[hash].Add(value);
 
                     // add extension
@@ -110,7 +120,8 @@ namespace CP77.CR2W.Archive
         /// </param>
         public override void LoadModArchive(string filename)
         {
-            if (Archives.ContainsKey(filename))
+            return;
+            /*if (Archives.ContainsKey(filename))
                 return;
 
             var bundle = new Archive(filename);
@@ -123,7 +134,7 @@ namespace CP77.CR2W.Archive
                 Items[GetModFolder(filename) + "\\" + item.Key].Add(item.Value);
             }
 
-            Archives.Add(filename, bundle);
+            Archives.Add(filename, bundle);*/
         }
 
         /// <summary>
@@ -136,12 +147,12 @@ namespace CP77.CR2W.Archive
             if (Archives.ContainsKey(filename))
                 return;
             var bundle = new Archive(filename);
-            foreach (KeyValuePair<ulong, ArchiveItem> item in bundle.Files)
+            foreach (KeyValuePair<ulong, FileEntry> item in bundle.Files)
             {
                 // add new key if the file isn't already in another bundle
-                if (!Items.ContainsKey(item.Key.ToString()))
-                    Items.Add(item.Key.ToString(), new List<IGameFile>());
-                Items[item.Key.ToString()].Add(item.Value);
+                if (!Items.ContainsKey(item.Value.Name))
+                    Items.Add(item.Value.Name, new List<IGameFile>());
+                Items[item.Value.Name].Add(item.Value);
             }
             Archives.Add(filename, bundle);
         }
@@ -152,42 +163,16 @@ namespace CP77.CR2W.Archive
         /// <param name="exedir">Path to executable directory</param>
         public override void LoadAll(string exedir)
         {
+            exedir = "D:\\SteamLibrary\\steamapps\\common\\Cyberpunk 2077\\bin\\x64\\";
             var di = new DirectoryInfo(exedir);
             if (!di.Exists)
                 return;
-            var dlc = Path.Combine(di.Parent.Parent.FullName, "DLC");
-            var content = Path.Combine(di.Parent.Parent.FullName, "content");
+            var archivedir = Path.Combine(di.Parent.Parent.FullName, "archive", "pc", "content");
 
-            var contentdirs = new List<string>(Directory.GetDirectories(content, "content*"));
-            contentdirs.Sort(new AlphanumComparator<string>());
-            foreach (var file in contentdirs.SelectMany(dir => Directory.GetFiles(dir, "*.archive", SearchOption.AllDirectories)))
+            foreach (var file in Directory.GetFiles(archivedir, "*.archive"))
             {
                 LoadArchive(file);
             }
-
-            var patchdirs = new List<string>(Directory.GetDirectories(content, "patch*"));
-            patchdirs.Sort(new AlphanumComparator<string>());
-            foreach (var file in patchdirs.SelectMany(dir =>
-                Directory.GetFiles(dir, "*.archive", SearchOption.AllDirectories)))
-            {
-                LoadArchive(file, true);
-            }
-
-            if (Directory.Exists(dlc))
-            {
-                var dlcdirs = new List<string>(Directory.GetDirectories(dlc));
-                dlcdirs.Sort(new AlphanumComparator<string>());
-
-                foreach (var file in dlcdirs
-                    .Where(_ => VanillaDlClist.Contains(new DirectoryInfo(_).Name))
-                    .SelectMany(dir => Directory.GetFiles(dir ?? "", "*.archive", SearchOption.AllDirectories)
-                    .OrderBy(k => k)))
-                {
-                    LoadArchive(file);
-                }
-            }
-
-
             RebuildRootNode();
         }
 
@@ -198,7 +183,8 @@ namespace CP77.CR2W.Archive
         /// <param name="dlc"></param>
         public override void LoadModsArchives(string mods, string dlc)
         {
-            if (!Directory.Exists(mods))
+            return;
+            /*if (!Directory.Exists(mods))
                 Directory.CreateDirectory(mods);
             var modsdirs = new List<string>(Directory.GetDirectories(mods));
             modsdirs.Sort(new AlphanumComparator<string>());
@@ -219,7 +205,7 @@ namespace CP77.CR2W.Archive
                     LoadModArchive(file);
                 }
             }
-            RebuildRootNode();
+            RebuildRootNode();*/
         }
 
         #endregion

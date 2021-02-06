@@ -1,6 +1,4 @@
-﻿
-using Catel.Services;
-using WolvenKit.ViewModels;
+﻿using Catel.Services;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -10,16 +8,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Threading;
 using Catel.MVVM;
 using Catel;
 using Catel.IoC;
-using Catel.Threading;
-using ControlzEx.Standard;
 using Orc.ProjectManagement;
 using NativeMethods = WolvenKit.NativeWin.NativeMethods;
 
@@ -29,22 +23,18 @@ namespace WolvenKit.ViewModels
     using Commands;
     using Common.Services;
     using CR2W;
+    using WolvenKit.Views;
+
     /// <summary>
-	/// The WorkSpaceViewModel implements AvalonDock demo specific properties, events and methods.
-	/// </summary>
-	public class WorkSpaceViewModel : ViewModelBase, IWorkSpaceViewModel
+    /// The WorkSpaceViewModel implements AvalonDock demo specific properties, events and methods.
+    /// </summary>
+    public class WorkSpaceViewModel : ViewModelBase, IWorkSpaceViewModel
 	{
 		#region fields
 		private readonly ObservableCollection<DocumentViewModel> _files = new ObservableCollection<DocumentViewModel>();
 		private ToolViewModel[] _tools = null;
 
-		private ICommand _openCommand = null;
-		private ICommand _newCommand = null;
-
-
 		private DocumentViewModel _activeDocument = null;
-
-		private int _newDocumentCounter = 0;
 
         private readonly IMessageService _messageService;
         private readonly ILoggerService _loggerService;
@@ -85,6 +75,7 @@ namespace WolvenKit.ViewModels
             ShowProjectExplorerCommand = new RelayCommand(ExecuteShowProjectExplorer, CanShowProjectExplorer);
             ShowImportUtilityCommand = new RelayCommand(ExecuteShowImportUtility, CanShowImportUtility);
             ShowPropertiesCommand = new RelayCommand(ExecuteShowProperties, CanShowProperties);
+            ShowPackageInstallerCommand = new RelayCommand(ExecuteShowInstaller, CanShowInstaller);
 
             OpenFileCommand = new DelegateCommand<FileSystemInfoModel>(
                 async (p ) => await ExecuteOpenFile(p), 
@@ -120,6 +111,7 @@ namespace WolvenKit.ViewModels
             commandManager.RegisterCommand(AppCommands.Application.ShowLog, ShowLogCommand, this);
             commandManager.RegisterCommand(AppCommands.Application.ShowProjectExplorer, ShowProjectExplorerCommand,
                 this);
+
             commandManager.RegisterCommand(AppCommands.Application.ShowImportUtility, ShowImportUtilityCommand, this);
             commandManager.RegisterCommand(AppCommands.Application.ShowProperties, ShowPropertiesCommand, this);
 
@@ -129,12 +121,14 @@ namespace WolvenKit.ViewModels
 
             commandManager.RegisterCommand(AppCommands.Application.PackMod, PackModCommand, this);
             commandManager.RegisterCommand(AppCommands.Application.BackupMod, BackupModCommand, this);
-
-			
-		}
+            commandManager.RegisterCommand(AppCommands.Application.ShowPackageInstaller, ShowPackageInstallerCommand, this);
 
 
-		private void OnProjectExplorerOnPropertyChanged(object sender, PropertyChangedEventArgs args)
+
+        }
+
+
+        private void OnProjectExplorerOnPropertyChanged(object sender, PropertyChangedEventArgs args)
         {
             // executes a global command that can be subscribed to from any viewmodel
             // passes the currently active viewmodel
@@ -166,12 +160,28 @@ namespace WolvenKit.ViewModels
 
 			return base.CloseAsync();
 		}
-		#endregion
+        #endregion
 
-		#region commands
-		/// <summary>
-		/// Displays the LogView.
-		/// </summary>
+        #region commands
+        /// <summary>
+        /// Displays the Project Installer.
+        /// </summary>
+        public ICommand ShowPackageInstallerCommand { get; private set; }
+        private bool CanShowInstaller() => true;
+        private void ExecuteShowInstaller()
+        {
+            Views.Wizards.InstallerWizardView rpv = new Views.Wizards.InstallerWizardView();
+            UserControlHostWindowViewModel zxc = new UserControlHostWindowViewModel(rpv);
+            UserControlHostWindowView uchwv = new UserControlHostWindowView(zxc);
+            uchwv.Show();
+        }
+
+
+
+
+        /// <summary>
+        /// Displays the LogView.
+        /// </summary>
         public ICommand ShowLogCommand { get; private set; }
 		private bool CanShowLog() => true;
         private void ExecuteShowLog() => Log.IsVisible = !Log.IsVisible;
@@ -188,14 +198,14 @@ namespace WolvenKit.ViewModels
 		/// </summary>
 		public ICommand ShowImportUtilityCommand { get; private set; }
         private bool CanShowImportUtility() => true;
-        private async void ExecuteShowImportUtility() => ImportViewModel.IsVisible = !ImportViewModel.IsVisible;
+        private void ExecuteShowImportUtility() => ImportViewModel.IsVisible = !ImportViewModel.IsVisible;
 
         /// <summary>
         /// Displays the Properties View
         /// </summary>
         public ICommand ShowPropertiesCommand { get; private set; }
         private bool CanShowProperties() => true;
-        private async void ExecuteShowProperties() => PropertiesViewModel.IsVisible = !PropertiesViewModel.IsVisible;
+        private void ExecuteShowProperties() => PropertiesViewModel.IsVisible = !PropertiesViewModel.IsVisible;
 
 		/// <summary>
 		/// Opens a physical file in WolvenKit.
@@ -244,20 +254,20 @@ namespace WolvenKit.ViewModels
 		/// </summary>
 		public ICommand PackModCommand { get; private set; }
         private bool CanPackMod() => _projectManager.ActiveProject is EditorProject proj;
-        private async void ExecutePackMod()
+        private void ExecutePackMod()
         {
             //TODO
-		}
+        }
 
 		/// <summary>
 		/// Git-backup current mod project
 		/// </summary>
 		public ICommand BackupModCommand { get; private set; }
         private bool CanBackupMod() => _projectManager.ActiveProject is EditorProject;
-        private async void ExecuteBackupMod()
+        private void ExecuteBackupMod()
         {
             //TODO
-		}
+        }
 
 		
 
@@ -480,14 +490,10 @@ namespace WolvenKit.ViewModels
                     var proc = new ProcessStartInfo(path) { UseShellExecute = true };
                     Process.Start(proc);
                 }
-                catch (Win32Exception winex)
+                catch (Win32Exception)
                 {
                     // eat this: no default app set for filetype
-                    _loggerService.LogString($"No default prgram set in Windows to open file extension {Path.GetExtension(path)}", Common.Services.Logtype.Error);
-                }
-                catch (Exception ex)
-                {
-                    throw ex;
+                    _loggerService.LogString($"No default prgram set in Windows to open file extension {Path.GetExtension(path)}", Logtype.Error);
                 }
             }
 
@@ -507,13 +513,13 @@ namespace WolvenKit.ViewModels
             }
         }
 
-        private async Task OnProjectActivationAsync(object sender, ProjectUpdatingCancelEventArgs e)
+        private Task OnProjectActivationAsync(object sender, ProjectUpdatingCancelEventArgs e)
         {
             var newProject = (EditorProject)e.NewProject;
-            if (newProject is null)
-                return;
+            if (newProject is not null)
+	            EditorProject = newProject;
 
-            EditorProject = newProject;
+            return Task.CompletedTask;
         }
 
         //

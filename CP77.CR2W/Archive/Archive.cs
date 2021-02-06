@@ -18,6 +18,7 @@ using WolvenKit.Common;
 using WolvenKit.Common.Extensions;
 using CP77.CR2W.Types;
 using WolvenKit.Common.Oodle;
+using Index = CP77Tools.Model.Index;
 
 namespace CP77.CR2W.Archive
 {
@@ -27,8 +28,8 @@ namespace CP77.CR2W.Archive
 
         public Archive()
         {
-            Header = new ArHeader();
-            Table = new ArTable();
+            Header = new Header();
+            Index = new Index();
         }
 
         /// <summary>
@@ -47,12 +48,16 @@ namespace CP77.CR2W.Archive
         #region properties
         public EArchiveType TypeName => EArchiveType.Archive;
 
-        public ArHeader Header { get; set; }
-        public ArTable Table { get; set; }
+        public Header Header { get; set; }
+
+
+        public Index Index { get; set; }
+
+
         public string ArchiveAbsolutePath { get; set; }
 
         [JsonIgnore]
-        public Dictionary<ulong, ArchiveItem> Files => Table?.FileInfo;
+        public Dictionary<ulong, FileEntry> Files => Index?.FileEntries;
 
         public int FileCount => Files?.Count ?? 0;
 
@@ -77,13 +82,13 @@ namespace CP77.CR2W.Archive
             // using (var vs = mmf.CreateViewStream((long)_header.Tableoffset, (long)_header.Tablesize,
             //     MemoryMappedFileAccess.Read))
             // {
-            //     _table = new ArTable(new BinaryReader(vs), this);
+            //     _table = new Index(new BinaryReader(vs), this);
             // }
 
             using var vs = new FileStream(ArchiveAbsolutePath, FileMode.Open, FileAccess.Read);
-            Header = new ArHeader(new BinaryReader(vs));
-            vs.Seek((long) Header.Tableoffset, SeekOrigin.Begin);
-            Table = new ArTable(new BinaryReader(vs), this);
+            Header = new Header(new BinaryReader(vs));
+            vs.Seek((long) Header.IndexPosition, SeekOrigin.Begin);
+            Index = new Index(new BinaryReader(vs), this);
             vs.Close();
         }
 
@@ -105,76 +110,63 @@ namespace CP77.CR2W.Archive
                 return false;
             var archiveItem = Files[hash]; 
             string name = archiveItem.FileName;
-            var hasBuffers = (archiveItem.LastOffsetTableIdx - archiveItem.FirstOffsetTableIdx) > 1;
+            var hasBuffers = (archiveItem.SegmentsEnd - archiveItem.SegmentsStart) > 1;
 
             var values = Enum.GetNames(typeof(ECookedFileFormat));
             var b = values.Any(e => e == Path.GetExtension(name)[1..]) || hasBuffers ;
             return b;
         }
 
-        /// <summary>
-        /// Gets the bytes of one file by index from the archive.
-        /// </summary>
-        /// <param name="hash"></param>
-        /// <param name="decompressBuffers"></param>
-        /// <returns></returns>
-        /// <exception cref="Exception"></exception>
-        public (byte[], List<byte[]>) GetFileData(ulong hash, bool decompressBuffers)
+        public void CopyFileToStream(Stream stream, ulong hash, bool decompressBuffers)
         {
-            var logger = ServiceLocator.Default.ResolveType<ILoggerService>();
-            if (!Files.ContainsKey(hash)) return (null, null);
+            if (!Files.ContainsKey(hash)) return;
 
             var entry = Files[hash];
-            var startindex = (int)entry.FirstOffsetTableIdx;
-            var nextindex = (int)entry.LastOffsetTableIdx;
-            
+            var startindex = (int)entry.SegmentsStart;
+            var nextindex = (int)entry.SegmentsEnd;
+
             // decompress main file
-            var file = ExtractFile(this.Table.Offsets[startindex], true);
-            
-            // don't decompress buffers
-            var buffers = new List<byte[]>();
+            CopyFileSegmentToStream(stream, this.Index.FileSegments[startindex], true);
+
+            // get buffers, optionally decompressing them
             for (int j = startindex + 1; j < nextindex; j++)
             {
-                var offsetentry = this.Table.Offsets[j];
-                var buffer = ExtractFile(offsetentry, decompressBuffers);
-                buffers.Add(buffer);
+                var offsetentry = this.Index.FileSegments[j];
+                CopyFileSegmentToStream(stream, offsetentry, decompressBuffers);
             }
+        }
 
-            return (file, buffers);
+        /// <summary>
+        /// Extracts a FileSegment to a stream
+        /// </summary>
+        /// <param name="outstream"></param>
+        /// <param name="offsetentry"></param>
+        /// <param name="decompress"></param>
+        private void CopyFileSegmentToStream(Stream outstream, FileSegment offsetentry, bool decompress)
+        {
+            using var fs = new FileStream(ArchiveAbsolutePath, FileMode.Open, FileAccess.Read);
+            using var br = new BinaryReader(fs);
+            br.BaseStream.Seek((long)offsetentry.Offset, SeekOrigin.Begin);
 
-            // local
-            byte[] ExtractFile(OffsetEntry offsetentry, bool decompress)
+
+            var zSize = offsetentry.ZSize;
+            var size = offsetentry.Size;
+
+            if (!decompress)
             {
-                using var ms = new MemoryStream();
-                using var bw = new BinaryWriter(ms);
-                
-                using var stream = new FileStream(ArchiveAbsolutePath, FileMode.Open, FileAccess.Read);
-                using var binaryReader = new BinaryReader(stream);
-                binaryReader.BaseStream.Seek((long) offsetentry.Offset, SeekOrigin.Begin);
-
-
-                var zSize = offsetentry.ZSize;
-                var size = offsetentry.Size;
-
-                if (!decompress)
-                {
-                    var buffer = binaryReader.ReadBytes((int)zSize);
-                    bw.Write(buffer);
-                }
-                else
-                {
-                    binaryReader.DecompressBuffer(bw, zSize, size);
-                }
-
-                return ms.ToArray();
+                var buffer = br.ReadBytes((int)zSize);
+                outstream.Write(buffer);
+            }
+            else
+            {
+                br.DecompressBuffer(outstream, zSize, size);
             }
         }
 
 
-
         #endregion
 
-        
+
     }
 
 
