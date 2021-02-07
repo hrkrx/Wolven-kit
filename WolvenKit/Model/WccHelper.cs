@@ -563,7 +563,7 @@ namespace WolvenKit.Model
             // check if mod or vanilla file
             var indir = isDLC
                 ? Path.GetFullPath(MainController.Get().Configuration.GameDlcDir)
-                : Path.GetFullPath(MainController.Get().Configuration.GameContentDir);
+                : Path.GetFullPath(MainController.Get().Configuration.W3ExePath);
             if (basedir.Contains(Path.GetFullPath(MainController.Get().Configuration.GameModDir)))
             {
                 indir = basedir;
@@ -715,8 +715,10 @@ namespace WolvenKit.Model
                     if (!File.Exists(newpath) && (extension != ".xbm" || !File.Exists(Path.ChangeExtension(newpath,
                         MainController.Get().Configuration.UncookExtension.ToString()))))
                     {
-                        string extractedfile = archive.Extract(new BundleFileExtractArgs(newpath,
-                            MainController.Get().Configuration.UncookExtension));
+                        using (var fs = new FileStream(newpath, FileMode.Create))
+                        {
+                            archive.Extract(fs);
+                        }
                         if (!silent)
                             Logger.LogString($"Succesfully unbundled {filename}.", Logtype.Success);
                     }

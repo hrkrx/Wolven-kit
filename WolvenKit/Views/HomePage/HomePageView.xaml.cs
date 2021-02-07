@@ -15,13 +15,46 @@ namespace WolvenKit.Views.HomePage
 {
     public partial class HomePageView
     {
+
+
+
+        private WelcomePageView WelcomePV;
+        private FirstSetupWizardView FirstSWV;
+        private RecentProjectView RecentPV;
+        private ProjectWizardView ProjectWV;
+        private WikiPageView WikitPV;
+        private AboutPageView AboutPV;
+        private SettingsPageView SettingsPV;
+        private WebsitePageView WebsitePV;
+        private UserPageView UserPV;
+        private IntegratedToolsPageView IntegratedTPV;
+        private GithubPageView GithubPV;
+
+
         public HomePageView()
         {
             InitializeComponent();
-            InitiializeGitHub();
+            InitializeGitHub();
+            InitializePages();
+
         }
 
-        private async void InitiializeGitHub()
+        private void InitializePages()
+        {
+            WelcomePV = new WelcomePageView();
+            FirstSWV = new FirstSetupWizardView();
+            RecentPV = new RecentProjectView();
+            ProjectWV = new ProjectWizardView();
+            WikitPV = new WikiPageView();
+            AboutPV = new AboutPageView();
+            SettingsPV = new SettingsPageView();
+            WebsitePV = new WebsitePageView();
+            UserPV = new UserPageView();
+            GithubPV = new GithubPageView();
+            IntegratedTPV = new IntegratedToolsPageView();
+        }
+
+        private async void InitializeGitHub()
         {
             GhubClient = new GitHubClient(new ProductHeaderValue("WolvenKit"));
             GhubClient.Credentials = GhubAuth("wolvenbot", "botwolven1");
@@ -46,7 +79,9 @@ namespace WolvenKit.Views.HomePage
                 var general = await GhubClient.Repository.Get("WolvenKit", "Wolven-Kit");
                 var g_stars = general.StargazersCount;
                 var g_forks = general.ForksCount;
+#pragma warning disable 618
                 var g_watchers = general.SubscribersCount;  // Ignore that error its the only way to get the watchers atm. (Shit documentation online tbh)
+#pragma warning restore 618
 
 
                 WatchShield.SetCurrentValue(Shield.StatusProperty, g_watchers.ToString());
@@ -123,10 +158,13 @@ namespace WolvenKit.Views.HomePage
                 PageViewGrid.Children.Clear();
 
                 TopicViewer.TopicViewer.Children.Clear();
-                TopicViewer.TopicViewer.Children.Add(new WelcomePageView());
+                TopicViewer.TopicViewer.Children.Add(WelcomePV);
             }
 
         }
+
+
+
 
         private void SideMenu_FirstUseItem_Selected(object sender, RoutedEventArgs e)
         {
@@ -135,7 +173,7 @@ namespace WolvenKit.Views.HomePage
                 PageViewGrid.Children.Clear();
 
                 TopicViewer.TopicViewer.Children.Clear();
-                TopicViewer.TopicViewer.Children.Add(new FirstSetupWizardView());
+                TopicViewer.TopicViewer.Children.Add(FirstSWV);
             }
         }
 
@@ -144,7 +182,7 @@ namespace WolvenKit.Views.HomePage
             if (IsLoaded && IsVisible && IsInitialized)
             {
                 PageViewGrid.Children.Clear();
-                PageViewGrid.Children.Add(new RecentProjectView());
+                PageViewGrid.Children.Add(RecentPV);
             }
         }
 
@@ -155,7 +193,7 @@ namespace WolvenKit.Views.HomePage
                 PageViewGrid.Children.Clear();
 
                 TopicViewer.TopicViewer.Children.Clear();
-                TopicViewer.TopicViewer.Children.Add(new ProjectWizardView());
+                TopicViewer.TopicViewer.Children.Add(ProjectWV);
             }
         }
 
@@ -164,16 +202,16 @@ namespace WolvenKit.Views.HomePage
             if (IsLoaded && IsVisible && IsInitialized)
             {
                 PageViewGrid.Children.Clear();
-                PageViewGrid.Children.Add(new WikiPageView());
+                PageViewGrid.Children.Add(WikitPV);
             }
         }
-
+   
         private void SideMenu_GitHubItem_Selected(object sender, RoutedEventArgs e)
         {
             if (IsLoaded && IsVisible && IsInitialized)
             {
                 PageViewGrid.Children.Clear();
-                PageViewGrid.Children.Add(new GithubPageView());
+                PageViewGrid.Children.Add(GithubPV);
             }
         }
 
@@ -182,7 +220,7 @@ namespace WolvenKit.Views.HomePage
             if (IsLoaded && IsVisible && IsInitialized)
             {
                 PageViewGrid.Children.Clear();
-                PageViewGrid.Children.Add(new AboutPageView());
+                PageViewGrid.Children.Add(AboutPV);
             }
         }
 
@@ -191,17 +229,37 @@ namespace WolvenKit.Views.HomePage
             if (IsLoaded && IsVisible && IsInitialized)
             {
                 PageViewGrid.Children.Clear();
-                PageViewGrid.Children.Add(new SettingsPageView());
+                PageViewGrid.Children.Add(SettingsPV);
             }
         }
-
+        
         private void SideMenu_WebsiteItem_Selected(object sender, RoutedEventArgs e)
         {
             if (IsLoaded && IsVisible && IsInitialized)
             {
                 PageViewGrid.Children.Clear();
-                PageViewGrid.Children.Add(new WebsitePageView());
+                PageViewGrid.Children.Add(WebsitePV);
             }
         }
+
+        private void Tag_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (IsLoaded && IsVisible && IsInitialized)
+            {
+                PageViewGrid.Children.Clear();
+                PageViewGrid.Children.Add(UserPV);
+            }
+        }
+
+        private void SideMenu_IntegratedItem_Selected(object sender, RoutedEventArgs e)
+        {
+            if (IsLoaded && IsVisible && IsInitialized)
+            {
+                PageViewGrid.Children.Clear();
+                PageViewGrid.Children.Add(IntegratedTPV);
+            }
+
+        }
+  
     }
 }

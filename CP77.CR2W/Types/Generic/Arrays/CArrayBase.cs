@@ -25,7 +25,7 @@ namespace CP77.CR2W.Types
 
 
         [Browsable(false)]
-        //public List<int> Flags { get; set; }
+        public List<int> Flags { get; set; }
         public string Elementtype { get; set; }
         public Type InnerType => this.GetType().GetGenericArguments().Single();
         #endregion
@@ -33,16 +33,7 @@ namespace CP77.CR2W.Types
 
 
         [Browsable(false)]
-        public override string REDType
-        {
-            get
-            {
-                return BuildTypeName(Elementtype);
-                //return Flags != null
-                //    ? BuildTypeName(Elementtype, Flags.ToArray())
-                //    : BuildTypeName(Elementtype);
-            }
-        }
+        public override string REDType => BuildTypeName(Elementtype);
 
         private string BuildTypeName(string type, params int[] flags)
         {
@@ -72,12 +63,17 @@ namespace CP77.CR2W.Types
 
             for (int i = 0; i < elementcount; i++)
             {
-                CVariable element = CR2WTypeManager.Create(Elementtype, i.ToString(), cr2w, this);
+                var element = CR2WTypeManager.Create(Elementtype, i.ToString(), cr2w, this);
 
                 // no actual way to find out the elementsize of an array element
                 // bacause cdpr serialized classes have no fixed size
                 // solution? not sure: pass 0 and disable checks?
-                element.Read(file, (uint)0);
+
+                var elementsize = 0;
+                if (element is IDataBufferAccessor)
+                    elementsize = (int) ((size - 4) / elementcount);
+
+                element.Read(file, (uint)elementsize);
                 if (element is T te)
                 {
                     te.IsSerialized = true;
