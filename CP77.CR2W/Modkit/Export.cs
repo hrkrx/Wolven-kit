@@ -25,12 +25,13 @@ namespace CP77.CR2W
     public static partial class ModTools
     {
         
+
         /// <summary>
         /// Exports (Uncooks) a REDEngine file into it's raw counterpart
         /// </summary>
         /// <param name="cr2wfile"></param>
         /// <param name="outpath"></param>
-        public static bool Export(FileInfo cr2wfile, EUncookExtension uncookext = EUncookExtension.dds)
+        public static bool Export(FileInfo cr2wfile, EUncookExtension uncookext = EUncookExtension.dds, bool flip = false)
         {
             #region checks
 
@@ -44,7 +45,7 @@ namespace CP77.CR2W
             using var fs = new FileStream(cr2wfile.FullName, FileMode.Open, FileAccess.Read);
             using var br = new BinaryReader(fs);
 
-            var cr2w = TryReadCr2WFile(br);
+            var cr2w = ModTools.TryReadCr2WFile(br);
             if (cr2w == null)
             {
                 Logger.LogString($"Failed to read cr2w file {cr2wfile.FullName}", Logtype.Error);
@@ -52,7 +53,7 @@ namespace CP77.CR2W
             }
             cr2w.FileName = cr2wfile.FullName;
 
-            return Uncook(fs, cr2wfile, ext, uncookext);
+            return Uncook(fs, cr2wfile, ext, uncookext, flip);
 
         }
 
